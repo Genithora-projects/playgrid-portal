@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 800" role="img" aria-label="Word Pop cover — words floating upward">
+	<defs>
+		<linearGradient id="wbg" x1="0" y1="0" x2="0" y2="1">
+			<stop offset="0%" stop-color="#062c22"/>
+			<stop offset="100%" stop-color="#0c0c10"/>
+		</linearGradient>
+	</defs>
+	<rect width="400" height="800" fill="url(#wbg)"/>
+	<g font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-weight="800" text-anchor="middle" fill="#10b981" opacity="0.95">
+		<text x="200" y="280" font-size="64" transform="rotate(-6 200 280)">type</text>
+		<text x="200" y="400" font-size="68">pop</text>
+		<text x="200" y="520" font-size="56" transform="rotate(4 200 520)" fill="#34d399">float</text>
+	</g>
+	<g fill="#ffffff" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" text-anchor="middle">
+		<text x="200" y="120" font-size="42" font-weight="700" letter-spacing="-0.02em">Word Pop</text>
+		<text x="200" y="700" font-size="18" font-weight="500" opacity="0.7">Type the floating word before it drifts</text>
+	</g>
+</svg>

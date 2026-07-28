@@ -1,0 +1,52 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import BentoGrid from '../components/BentoGrid.astro';
+import RecentSection from '../components/RecentSection.astro';
+import { getPublishedGames } from '../lib/content';
+import { SITE_NAME, SITE_TAGLINE } from '../lib/site';
+
+const games = await getPublishedGames();
+---
+
+<BaseLayout title={SITE_NAME} description="Original HTML5 games. Open instantly. No accounts, no ads.">
+	<section class="hero">
+		<h1 class="hero-title">{SITE_NAME}</h1>
+		<p class="hero-tagline">{SITE_TAGLINE}</p>
+	</section>
+	<RecentSection />
+	<section aria-label="Games">
+		<BentoGrid games={games} />
+	</section>
+</BaseLayout>
+
+<style>
+	.hero {
+		padding: var(--space-8) 0 var(--space-10);
+		text-align: center;
+		max-width: 640px;
+		margin: 0 auto;
+	}
+
+	.hero-title {
+		font-size: clamp(var(--font-size-3xl), 5vw, var(--font-size-4xl));
+		font-weight: var(--font-weight-bold);
+		letter-spacing: -0.02em;
+		margin: 0;
+		background: linear-gradient(135deg, #6366f1 0%, #f59e0b 50%, #10b981 100%);
+		-webkit-background-clip: text;
+		background-clip: text;
+		color: transparent;
+	}
+
+	.hero-tagline {
+		margin: var(--space-3) auto 0;
+		font-size: var(--font-size-lg);
+		color: var(--color-text-muted);
+		line-height: var(--line-height-snug);
+	}
+
+	@media (max-width: 640px) {
+		.hero-title { font-size: var(--font-size-3xl); }
+		.hero-tagline { font-size: var(--font-size-base); }
+	}
+</style>

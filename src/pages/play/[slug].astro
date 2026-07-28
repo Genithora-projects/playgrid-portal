@@ -1,0 +1,721 @@
+---
+/**
+ * Tek oyun sayfasi (T-13, T-15, T-16, T-17, T-18).
+ *
+ * Davranis:
+ * - Sayfa ilk acildiginda kapak + Play butonu. Iframe OTOMATIK yuklenmez (FR-009).
+ * - Play tiklaninca sandbox iframe DOM'a eklenir (FR-010, T-14).
+ * - Iframe yaratildiktan sonra shell.attachShell ile postMessage kanal kurulur.
+ * - 'ready' icin 8sn beklenir; gelmezse hata ekrani (T-16).
+ * - Kontroller: Mute, Restart, Fullscreen, Share (T-15). Esc iframe'den cikar.
+ * - Sekme arkaplana duserse -> pause + mute (T-17). On plana donunce mute kalkar;
+ *   resume kullaniciya birakilir (otomatik resume rahatsiz edici).
+ * - Skor ve oynama sayisi kabuk tarafindan localStorage'a yazilir (T-18).
+ *
+ * Bu sayfa M0 vitrinin son hali DEGILDIR; M1 oyun hattinin kabuk tarafini
+ * temsil eder. Ilk gercek oyun (T-22) bu sayfa tarafindan host edilecektir.
+ */
+
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getCollection, type CollectionEntry } from 'astro:content';
+import { SITE_NAME } from '../../lib/site';
+
+export async function getStaticPaths() {
+	const games = await getCollection('games', ({ data }) => data.status === 'published');
+	return games.map((game) => ({
+		params: { slug: game.data.slug },
+		props: { game },
+	}));
+}
+
+interface Props {
+	game: CollectionEntry<'games'>;
+}
+
+const { game } = Astro.props;
+const {
+	slug,
+	title,
+	tagline,
+	description,
+	category,
+	accentColor,
+	cover,
+	orientation,
+	controls,
+} = game.data;
+
+const gameHref = `/games/${slug}/index.html`;
+const ariaTitle = `Play ${title}`;
+const isLandscape = orientation === 'landscape';
+const controlsText = controls.map((c) => c).join(' + ');
+---
+
+<BaseLayout title={ariaTitle} description={description} image={`/og/${slug}.png`} type="video.game">
+	<!-- schema.org/VideoGame (FR-033 yapisal veri). Sunucuda render; crawler'lar icin -->
+	<script type="application/ld+json" is:inline set:html={JSON.stringify({
+		'@context': 'https://schema.org',
+		'@type': 'VideoGame',
+		name: title,
+		description,
+		image: new URL(`/games/${slug}/${cover}`, Astro.url).toString(),
+		url: Astro.url.toString(),
+		applicationCategory: 'Game',
+		operatingSystem: 'Web Browser',
+		genre: category,
+		playMode: 'SinglePlayer',
+		isAccessibleForFree: true,
+	})}></script>
+	<article
+		class="play"
+		style={`--color-accent:${accentColor}`}
+		data-game-slug={slug}
+	>
+		<nav class="play-back" aria-label="Game navigation">
+			<a href="/" class="play-back-link">← All games</a>
+			<h1 class="play-page-title">{title}</h1>
+		</nav>
+
+		<div
+			class="play-stage"
+			data-play-stage
+			data-game-src={gameHref}
+			data-orientation={orientation}
+			data-game-cover={`/games/${slug}/${cover}`}
+			aria-label={`${title} game stage`}
+		>
+			<img
+				class="play-cover-img"
+				src={`/games/${slug}/${cover}`}
+				alt={`${title} cover`}
+				width="800"
+				height="450"
+			/>
+			<button type="button" class="play-button" data-play-button>
+				<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+					<path d="M8 5v14l11-7z" />
+				</svg>
+				<span>Play</span>
+			</button>
+			<div class="play-error" data-play-error role="alert" hidden>
+				<h2>This game failed to load</h2>
+				<p>It did not respond in time. Try restarting, or pick another game.</p>
+				<button type="button" class="play-error-restart" data-play-error-restart>Try again</button>
+			</div>
+			<div class="play-loading" data-play-loading hidden>
+				<div class="play-spinner" aria-hidden="true"></div>
+				<p class="visually-hidden">Loading game…</p>
+			</div>
+		</div>
+
+		<div class="play-controls" data-play-controls hidden>
+			<button
+				type="button"
+				class="play-control"
+				data-play-mute
+				aria-label="Mute audio"
+				aria-pressed="false"
+				title="Mute (m)"
+			>
+				<svg class="icon-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+					<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+					<path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+					<path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+				</svg>
+				<svg class="icon-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+					<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+					<line x1="23" y1="9" x2="17" y2="15"></line>
+					<line x1="17" y1="9" x2="23" y2="15"></line>
+				</svg>
+			</button>
+			<button
+				type="button"
+				class="play-control"
+				data-play-restart
+				aria-label="Restart game"
+				title="Restart (r)"
+			>
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+					<polyline points="1 4 1 10 7 10"></polyline>
+					<path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+				</svg>
+			</button>
+			<button
+				type="button"
+				class="play-control"
+				data-play-fullscreen
+				aria-label="Toggle fullscreen"
+				title="Fullscreen (f)"
+			>
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+					<path d="M3 7V3h4M21 7V3h-4M3 17v4h4M21 17v4h-4"></path>
+				</svg>
+			</button>
+			<button
+				type="button"
+				class="play-control"
+				data-play-share
+				aria-label="Share this game"
+				title="Share"
+			>
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+					<circle cx="18" cy="5" r="3"></circle>
+					<circle cx="6" cy="12" r="3"></circle>
+					<circle cx="18" cy="19" r="3"></circle>
+					<line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+					<line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+				</svg>
+			</button>
+		</div>
+
+		<section class="play-info" aria-label="Game details">
+			<dl class="play-meta">
+				<div>
+					<dt>Best score</dt>
+					<dd data-play-best>—</dd>
+				</div>
+				<div>
+					<dt>Plays</dt>
+					<dd data-play-plays>0</dd>
+				</div>
+				<div>
+					<dt>Orientation</dt>
+					<dd>{orientation}</dd>
+				</div>
+				<div>
+					<dt>Controls</dt>
+					<dd>{controlsText}</dd>
+				</div>
+			</dl>
+			<p class="play-description">{description}</p>
+			<p class="play-tagline">{tagline}</p>
+			{isLandscape && (
+				<p class="play-orientation-hint">
+					Best played in landscape — turn your phone sideways.
+				</p>
+			)}
+		</section>
+	</article>
+</BaseLayout>
+
+<script>
+	import { attachShell, awaitMessage } from '../../lib/sdk/sdk.mjs';
+	import { updateStore } from '../../lib/store';
+
+	const stageEl = document.querySelector<HTMLElement>('[data-play-stage]');
+	const playBtn = document.querySelector<HTMLButtonElement>('[data-play-button]');
+	const controlsEl = document.querySelector<HTMLElement>('[data-play-controls]');
+	const errorEl = document.querySelector<HTMLElement>('[data-play-error]');
+	const errorRestartBtn = document.querySelector<HTMLButtonElement>('[data-play-error-restart]');
+	const loadingEl = document.querySelector<HTMLElement>('[data-play-loading]');
+	const gameSlug = document.querySelector<HTMLElement>('[data-game-slug]')?.getAttribute('data-game-slug') ?? '';
+
+	const bestEl = document.querySelector<HTMLElement>('[data-play-best]');
+	const playsEl = document.querySelector<HTMLElement>('[data-play-plays]');
+
+	function hydrateStats(): void {
+		const s = updateStore((x) => x);
+		const slugScore = s.scores[gameSlug];
+		if (bestEl) bestEl.textContent = slugScore ? String(slugScore.best) : '—';
+		if (playsEl) playsEl.textContent = slugScore ? String(slugScore.plays) : '0';
+	}
+	hydrateStats();
+
+	function buildIframe(): HTMLIFrameElement {
+		const iframe = document.createElement('iframe');
+		const src = stageEl?.getAttribute('data-game-src') || '';
+		const orientation = stageEl?.getAttribute('data-orientation') || 'any';
+		iframe.title = gameSlug;
+		iframe.src = src;
+		iframe.sandbox = 'allow-scripts';
+		iframe.allow = 'fullscreen; pointer-lock; gamepad; autoplay';
+		iframe.referrerPolicy = 'no-referrer';
+		iframe.loading = 'eager';
+		iframe.className = 'play-iframe';
+		iframe.dataset.orientation = orientation;
+		iframe.setAttribute('aria-label', 'Game viewport');
+		iframe.setAttribute('allowfullscreen', '');
+		iframe.tabIndex = 0;
+		return iframe;
+	}
+
+	function startGame(): void {
+		if (!stageEl) return;
+		const iframe = buildIframe();
+		const src = stageEl.getAttribute('data-game-src') || '';
+		const orientation = stageEl.getAttribute('data-orientation') || 'any';
+		iframe.dataset.orientation = orientation;
+
+		const loadingOverlay = loadingEl?.cloneNode(true) as HTMLElement;
+		if (loadingOverlay) {
+			loadingOverlay.hidden = false;
+			stageEl.replaceChildren(iframe, loadingOverlay);
+		} else {
+			stageEl.replaceChildren(iframe);
+		}
+		stageEl.classList.add('is-loading');
+		errorEl?.setAttribute('hidden', '');
+		controlsEl?.setAttribute('hidden', '');
+
+		const startTs = Date.now();
+		awaitMessage(iframe, (m): boolean => {
+			return !!m && typeof m === 'object' && (m as { type?: unknown }).type === 'ready' && (m as { v?: unknown }).v === 1;
+		}, 8000)
+			.then(() => {
+				stageEl.classList.remove('is-loading');
+				if (loadingOverlay) loadingOverlay.hidden = true;
+				if (controlsEl) controlsEl.removeAttribute('hidden');
+				wireUpShell(iframe);
+				updateStore((s) => ({
+					...s,
+					scores: {
+						...s.scores,
+						[gameSlug]: {
+							best: s.scores[gameSlug]?.best ?? 0,
+							plays: (s.scores[gameSlug]?.plays ?? 0) + 1,
+							lastScore: s.scores[gameSlug]?.lastScore ?? 0,
+							lastPlayedAt: startTs,
+						},
+					},
+				}));
+				hydrateStats();
+			})
+			.catch(() => {
+				stageEl.classList.remove('is-loading');
+				if (loadingOverlay) loadingOverlay.hidden = true;
+				if (errorEl) errorEl.removeAttribute('hidden');
+			});
+	}
+
+	function wireUpShell(iframe: HTMLIFrameElement): void {
+		const shell = attachShell(iframe, {
+			onScore(value: number) {
+				updateStore((s) => {
+					const prev = s.scores[gameSlug] ?? { best: 0, plays: 0, lastScore: 0, lastPlayedAt: 0 };
+					return {
+						...s,
+						scores: {
+							...s.scores,
+							[gameSlug]: {
+								best: Math.max(prev.best, value),
+								plays: prev.plays,
+								lastScore: value,
+								lastPlayedAt: Date.now(),
+							},
+						},
+					};
+				});
+				hydrateStats();
+			},
+			onGameover(finalScore: number) {
+				updateStore((s) => {
+					const prev = s.scores[gameSlug] ?? { best: 0, plays: 0, lastScore: 0, lastPlayedAt: 0 };
+					const now = Date.now();
+					const filtered = s.lastPlayed.filter((p) => p.slug !== gameSlug);
+					const nextLastPlayed = [{ slug: gameSlug, ts: now }, ...filtered].slice(0, 10);
+					return {
+						...s,
+						scores: {
+							...s.scores,
+							[gameSlug]: {
+								best: Math.max(prev.best, finalScore),
+								plays: prev.plays,
+								lastScore: finalScore,
+								lastPlayedAt: now,
+							},
+						},
+						lastPlayed: nextLastPlayed,
+					};
+				});
+				hydrateStats();
+			},
+		});
+
+		const muteBtn = document.querySelector<HTMLButtonElement>('[data-play-mute]');
+		const restartBtn = document.querySelector<HTMLButtonElement>('[data-play-restart]');
+		const fullscreenBtn = document.querySelector<HTMLButtonElement>('[data-play-fullscreen]');
+		const shareBtn = document.querySelector<HTMLButtonElement>('[data-play-share]');
+
+		let muted = false;
+		muteBtn?.addEventListener('click', () => {
+			muted = !muted;
+			muteBtn.setAttribute('aria-pressed', String(muted));
+			muteBtn.classList.toggle('is-muted', muted);
+			if (muted) shell?.mute(); else shell?.unmute();
+		});
+
+		restartBtn?.addEventListener('click', () => {
+			shell?.destroy();
+			startGame();
+		});
+
+		fullscreenBtn?.addEventListener('click', () => {
+			if (document.fullscreenElement) {
+				document.exitFullscreen();
+			} else {
+				iframe.requestFullscreen?.().catch(() => {});
+			}
+		});
+
+		shareBtn?.addEventListener('click', async () => {
+			const url = window.location.href;
+			const data: ShareData = {
+				title: document.title,
+				text: `${gameSlug} — Playgrid`,
+				url,
+			};
+			if (typeof navigator.share === 'function') {
+				try { await navigator.share(data); return; } catch { /* ignore */ }
+			}
+			if (navigator.clipboard?.writeText) {
+				try {
+					await navigator.clipboard.writeText(url);
+					shareBtn.classList.add('is-copied');
+					setTimeout(() => shareBtn.classList.remove('is-copied'), 1500);
+				} catch { /* ignore */ }
+			}
+		});
+
+		window.addEventListener('keydown', (e) => {
+			if (!stageEl?.contains(iframe)) return;
+			const tag = (e.target as HTMLElement | null)?.tagName;
+			if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+			if (e.key.toLowerCase() === 'm') {
+				e.preventDefault();
+				muteBtn?.click();
+			} else if (e.key.toLowerCase() === 'r') {
+				e.preventDefault();
+				restartBtn?.click();
+			} else if (e.key.toLowerCase() === 'f') {
+				e.preventDefault();
+				fullscreenBtn?.click();
+			} else if (e.key === 'Escape') {
+				if (document.fullscreenElement) {
+					document.exitFullscreen();
+				} else {
+					restartBtn?.focus();
+				}
+			}
+		});
+
+		document.addEventListener('visibilitychange', () => {
+			if (document.visibilityState === 'hidden') {
+				shell?.pause();
+				if (!muted) {
+					shell?.mute();
+				}
+			} else if (document.visibilityState === 'visible' && muted) {
+				// otomatik resume kullaniciya birakilir; sadece mute korumasi kalkar
+				shell?.unmute();
+			}
+		});
+
+		window.addEventListener('pagehide', () => {
+			shell?.pause();
+		});
+	}
+
+	if (playBtn) {
+		playBtn.addEventListener('click', startGame);
+	}
+	if (errorRestartBtn) {
+		errorRestartBtn.addEventListener('click', () => {
+			errorEl?.setAttribute('hidden', '');
+			startGame();
+		});
+	}
+</script>
+
+<style>
+	.play {
+		display: grid;
+		gap: var(--space-4);
+		max-width: 960px;
+		margin: 0 auto;
+	}
+
+	.play-back {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--space-3);
+	}
+
+	.play-back-link {
+		display: inline-flex;
+		align-items: center;
+		padding: var(--space-2) var(--space-3);
+		color: var(--color-text-muted);
+		font-size: var(--font-size-sm);
+		font-weight: var(--font-weight-medium);
+		text-decoration: none;
+		border-radius: var(--radius-md);
+		transition: background-color var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard);
+	}
+
+	.play-back-link:hover,
+	.play-back-link:focus-visible {
+		background: var(--color-bg-elevated);
+		color: var(--color-text);
+		text-decoration: none;
+	}
+
+	.play-page-title {
+		margin: 0;
+		font-size: var(--font-size-lg);
+		font-weight: var(--font-weight-semibold);
+		color: var(--color-text);
+	}
+
+	.play-stage {
+		position: relative;
+		display: block;
+		width: 100%;
+		aspect-ratio: 16 / 9;
+		border-radius: var(--radius-lg);
+		overflow: hidden;
+		background: var(--color-bg-sunken);
+		border: 1px solid var(--color-border);
+	}
+
+	.play-stage .play-cover-img {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.play-iframe {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		border: none;
+		background: var(--color-bg);
+	}
+
+	.play-button {
+		position: absolute;
+		left: 50%;
+		top: 50%;
+		transform: translate(-50%, -50%);
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
+		padding: var(--space-4) var(--space-6);
+		background: var(--color-accent);
+		color: var(--color-accent-contrast);
+		border-radius: var(--radius-full);
+		font-size: var(--font-size-xl);
+		font-weight: var(--font-weight-semibold);
+		box-shadow: var(--shadow-lg);
+		transition:
+			transform var(--dur-base) var(--ease-emphasized),
+			box-shadow var(--dur-base) var(--ease-emphasized);
+		cursor: pointer;
+	}
+
+	.play-button:hover {
+		transform: translate(-50%, -50%) scale(1.05);
+	}
+
+	.play-button svg {
+		width: 1.75rem;
+		height: 1.75rem;
+	}
+
+	.play-loading {
+		position: absolute;
+		right: var(--space-3);
+		bottom: var(--space-3);
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
+		padding: var(--space-2) var(--space-3);
+		background: var(--color-bg-overlay, rgb(0 0 0 / 0.5));
+		color: var(--color-text);
+		border-radius: var(--radius-full);
+		font-size: var(--font-size-sm);
+	}
+
+	.play-spinner {
+		width: 1rem;
+		height: 1rem;
+		border: 2px solid var(--color-border);
+		border-top-color: var(--color-accent);
+		border-radius: var(--radius-full);
+		animation: play-spin 800ms linear infinite;
+	}
+
+	@keyframes play-spin {
+		to { transform: rotate(360deg); }
+	}
+
+	.play-error {
+		position: absolute;
+		inset: var(--space-3);
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: var(--space-2);
+		padding: var(--space-6);
+		background: var(--color-bg-elevated);
+		border-radius: var(--radius-md);
+		text-align: center;
+	}
+
+	.play-error h2 {
+		margin: 0;
+		font-size: var(--font-size-xl);
+	}
+
+	.play-error p {
+		margin: 0;
+		color: var(--color-text-muted);
+	}
+
+	.play-error-restart {
+		margin-top: var(--space-2);
+		padding: var(--space-2) var(--space-4);
+		background: var(--color-accent);
+		color: var(--color-accent-contrast);
+		border-radius: var(--radius-md);
+		font-weight: var(--font-weight-semibold);
+	}
+
+	.play-controls {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: center;
+		gap: var(--space-2);
+		padding: var(--space-3);
+		background: var(--color-bg-elevated);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+	}
+
+	.play-control {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 2.75rem;
+		height: 2.75rem;
+		border-radius: var(--radius-md);
+		background: transparent;
+		color: var(--color-text-muted);
+		border: 1px solid transparent;
+		transition:
+			background-color var(--dur-fast) var(--ease-standard),
+			color var(--dur-fast) var(--ease-standard);
+	}
+
+	.play-control:hover,
+	.play-control:focus-visible {
+		background: var(--color-bg-sunken);
+		color: var(--color-text);
+	}
+
+	.play-control.is-muted,
+	.play-control[aria-pressed='true'] {
+		background: var(--color-accent-soft);
+		color: var(--color-accent);
+	}
+
+	.play-control .icon-on,
+	.play-control .icon-off {
+		width: 1.125rem;
+		height: 1.125rem;
+	}
+
+	.play-control .icon-off {
+		display: none;
+	}
+
+	.play-control.is-muted .icon-on,
+	.play-control[aria-pressed='true'] .icon-on {
+		display: none;
+	}
+
+	.play-control.is-muted .icon-off,
+	.play-control[aria-pressed='true'] .icon-off {
+		display: block;
+	}
+
+	.play-control.is-copied {
+		background: var(--color-accent);
+		color: var(--color-accent-contrast);
+	}
+
+	.play-info {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-3);
+		padding: var(--space-4);
+		background: var(--color-bg-elevated);
+		border-radius: var(--radius-lg);
+		border: 1px solid var(--color-border);
+	}
+
+	.play-meta {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+		gap: var(--space-3);
+		margin: 0;
+	}
+
+	.play-meta dt {
+		font-size: var(--font-size-xs);
+		font-weight: var(--font-weight-semibold);
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		color: var(--color-text-subtle);
+		margin: 0 0 var(--space-1);
+	}
+
+	.play-meta dd {
+		margin: 0;
+		font-size: var(--font-size-base);
+		font-weight: var(--font-weight-medium);
+		color: var(--color-text);
+		text-transform: capitalize;
+	}
+
+	.play-description,
+	.play-tagline {
+		margin: 0;
+		color: var(--color-text-muted);
+		line-height: var(--line-height-base);
+	}
+
+	.play-tagline {
+		font-size: var(--font-size-sm);
+	}
+
+	.play-orientation-hint {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
+		padding: var(--space-2) var(--space-3);
+		margin: 0;
+		background: var(--color-accent-soft);
+		color: var(--color-accent);
+		border-radius: var(--radius-md);
+		font-size: var(--font-size-sm);
+		font-weight: var(--font-weight-medium);
+	}
+
+	.visually-hidden {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border: 0;
+	}
+</style>

@@ -1,0 +1,18 @@
+{
+	"slug": "bouncing-ball",
+	"title": "Bouncing Ball",
+	"tagline": "Keep the ball alive as the speed climbs",
+	"description": "A classic paddle-and-ball arcade. Bricks fall, the speed climbs; one miss and the run is over. Three difficulty presets; local best score only.",
+	"category": "arcade",
+	"tags": ["paddle", "classic", "single-tap"],
+	"size": "wide",
+	"accentColor": "#f59e0b",
+	"cover": "cover.svg",
+	"orientation": "landscape",
+	"controls": ["touch", "keyboard"],
+	"sdkVersion": 1,
+	"status": "published",
+	"featured": false,
+	"publishedAt": "2026-07-28T00:00:00.000Z",
+	"updatedAt": "2026-07-28T00:00:00.000Z"
+}

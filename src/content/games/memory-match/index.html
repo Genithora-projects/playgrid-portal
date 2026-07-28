@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover" />
+		<meta name="theme-color" content="#0c0c10" />
+		<title>Memory Match</title>
+		<style>
+			:root { color-scheme: dark; }
+			*, *::before, *::after { box-sizing: border-box; }
+			html, body {
+				margin: 0; padding: 0; height: 100dvh; overflow: hidden;
+				background: #0c0c10; color: #f4f4f5;
+				font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+				touch-action: manipulation; user-select: none; -webkit-user-select: none;
+			}
+			.stage {
+				display: flex; flex-direction: column; align-items: center; gap: 14px;
+				padding: 14px 18px max(14px, env(safe-area-inset-bottom));
+			}
+			.hud {
+				display: flex; gap: 14px; justify-content: center; align-items: center;
+				font-weight: 600; font-size: 14px; flex-wrap: wrap;
+			}
+			.hud-stat {
+				display: inline-flex; align-items: center; gap: 6px;
+				padding: 6px 12px; border-radius: 999px;
+				background: rgba(255,255,255,0.06); backdrop-filter: blur(6px);
+				font-variant-numeric: tabular-nums;
+			}
+			.hud-stat .icon { width: 16px; height: 16px; }
+			.board {
+				display: grid; gap: 8px;
+				width: min(86vw, 420px); aspect-ratio: 1;
+				padding: 8px;
+				background: rgba(244,63,94,0.05); border: 1px solid rgba(244,63,94,0.12);
+				border-radius: 14px;
+			}
+			.card {
+				appearance: none; border: none; padding: 0; margin: 0;
+				position: relative; cursor: pointer;
+				border-radius: 8px;
+				background: #1c1c20;
+				color: #f43f5e;
+				transition: transform 220ms ease, background-color 220ms ease;
+				aspect-ratio: 1; min-width: 0;
+				font: inherit;
+			}
+			.card .face {
+				position: absolute; inset: 0; display: flex;
+				align-items: center; justify-content: center;
+				font-size: clamp(28px, 7vw, 44px); font-weight: 800;
+				color: #f43f5e;
+				opacity: 0;
+				transition: opacity 180ms ease;
+			}
+			.card .back {
+				position: absolute; inset: 0; display: flex;
+				align-items: center; justify-content: center;
+				background:
+					radial-gradient(circle at 50% 50%, rgba(244,63,94,0.4) 0%, transparent 60%),
+					repeating-linear-gradient(45deg, rgba(244,63,94,0.18) 0 4px, transparent 4px 8px);
+				border-radius: 8px;
+				font-size: 28px;
+				color: rgba(244,63,94,0.5);
+				font-weight: 800;
+			}
+			.card.is-flipped { background: rgba(244,63,94,0.95); color: #fafafa; }
+			.card.is-flipped .face { opacity: 1; }
+			.card.is-flipped .back { opacity: 0; }
+			.card.is-matched { background: #15803d; color: #fafafa; cursor: default; }
+			.card.is-matched .face { opacity: 1; }
+			.card.is-matched::after {
+				content: '✓'; position: absolute; top: 6px; right: 8px;
+				font-size: 16px; color: #bbf7d0;
+			}
+			.card:active { transform: scale(0.97); }
+			.overlay {
+				position: absolute; inset: 0; display: flex; flex-direction: column;
+				align-items: center; justify-content: center; gap: 12px;
+				background: rgba(0,0,0,0.55); backdrop-filter: blur(6px);
+				color: #f4f4f5; text-align: center; padding: 24px; z-index: 5;
+				border-radius: 14px;
+			}
+			.overlay h2 { margin: 0; font-size: 32px; }
+			.overlay p  { margin: 0; font-size: 16px; opacity: 0.85; max-width: 320px; }
+			.overlay button {
+				appearance: none; border: none; padding: 12px 24px; cursor: pointer;
+				background: #f43f5e; color: #fafafa;
+				border-radius: 999px; font: inherit; font-weight: 700;
+				box-shadow: 0 6px 18px rgba(244,63,94,0.35);
+			}
+			.board-wrap { position: relative; }
+			.hint { font-size: 13px; color: rgba(244,244,245,0.6); text-align: center; max-width: 480px; }
+		</style>
+	</head>
+	<body>
+		<div class="stage" role="application" aria-label="Memory Match">
+			<div class="hud" aria-live="polite">
+				<div class="hud-stat">
+					<svg class="icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2 14.39 8.5 21 9.27l-5 4.87L17.18 21 12 17.77 6.82 21 8 14.14l-5-4.87 6.61-.77z"/></svg>
+					<span id="score">0</span>
+				</div>
+				<div class="hud-stat">Round <span id="round">1</span></div>
+				<div class="hud-stat">Pairs <span id="pairs">0</span>/8</div>
+				<div class="hud-stat" id="time-stat">
+					<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg>
+					<span id="time">75.0s</span>
+				</div>
+			</div>
+			<div class="board-wrap">
+				<div class="board" id="board"></div>
+				<div class="overlay" id="overlay">
+					<h2 id="overlay-title">Tap to start</h2>
+					<p id="overlay-msg">Flip two cards. Match pairs to lock them. The timer never stops.</p>
+					<button id="overlay-btn">Start</button>
+				</div>
+			</div>
+			<p class="hint"><kbd>Tap</kbd> to flip. Two unmatched cards auto-cover after 0.8s.</p>
+		</div>
+		<script type="module">
+			import { createGame, fixedTimestep } from '/sdk/sdk.mjs';
+
+			const SYMBOLS = ['★', '●', '▲', '■', '◆', '✦', '⬢', '⬣'];
+			const GRID_COLS = 4;
+			const GRID_ROWS = 4;
+			const LOOP_SECONDS = 75;
+			const REVEAL_MS = 850;
+
+			const game = createGame({
+				slug: 'memory-match',
+				sdkVersion: 1,
+				onPause() { state.paused = true; },
+				onResume() { state.paused = false; lastTs = performance.now(); },
+				onMute() {},
+			});
+
+			const boardEl = document.getElementById('board');
+			const overlay = document.getElementById('overlay');
+			const overlayTitle = document.getElementById('overlay-title');
+			const overlayMsg = document.getElementById('overlay-msg');
+			const overlayBtn = document.getElementById('overlay-btn');
+			const scoreEl = document.getElementById('score');
+			const roundEl = document.getElementById('round');
+			const pairsEl = document.getElementById('pairs');
+			const timeEl = document.getElementById('time');
+			const timeStat = document.getElementById('time-stat');
+
+			let lastTs = performance.now();
+			let state = fresh();
+			let revealTimer = null;
+
+			function fresh() {
+				return {
+					phase: 'idle',
+					score: 0,
+					round: 1,
+					pairsMatchedInRound: 0,
+					totalPairs: 0,
+					timeLeft: LOOP_SECONDS,
+					revealing: [],
+					cards: [],
+				};
+			}
+
+			function shuffle(arr) {
+				const a = arr.slice();
+				for (let i = a.length - 1; i > 0; i--) {
+					const j = Math.floor(Math.random() * (i + 1));
+					[a[i], a[j]] = [a[j], a[i]];
+				}
+				return a;
+			}
+
+			function buildRound() {
+				const pool = [];
+				for (let i = 0; i < SYMBOLS.length; i++) pool.push(SYMBOLS[i], SYMBOLS[i]);
+				return shuffle(pool);
+			}
+
+			function renderBoard() {
+				if (!boardEl) return;
+				if (state.cards.length !== SYMBOLS.length * 2) {
+					boardEl.innerHTML = '';
+					boardEl.style.gridTemplateColumns = 'repeat(' + GRID_COLS + ', 1fr)';
+					boardEl.style.gridTemplateRows = 'repeat(' + GRID_ROWS + ', 1fr)';
+					state.cards = [];
+					for (let i = 0; i < GRID_ROWS * GRID_COLS; i++) {
+						const btn = document.createElement('button');
+						btn.type = 'button';
+						btn.className = 'card';
+						btn.setAttribute('aria-label', 'Card ' + (i + 1));
+						btn.innerHTML = '<span class="back" aria-hidden="true"></span><span class="face" aria-hidden="true"></span>';
+						btn.addEventListener('click', () => onCard(i));
+						boardEl.appendChild(btn);
+						state.cards.push(btn);
+					}
+					state.totalPairs = SYMBOLS.length;
+				}
+				for (let i = 0; i < state.cards.length; i++) {
+					const btn = state.cards[i];
+					btn.querySelector('.face').textContent = state.deck ? state.deck[i] : '?';
+					btn.classList.remove('is-flipped', 'is-matched');
+				}
+			}
+
+			function onCard(i) {
+				if (state.phase !== 'playing') return;
+				if (state.revealing.length >= 2) return;
+				const btn = state.cards[i];
+				if (!btn || btn.classList.contains('is-flipped') || btn.classList.contains('is-matched')) return;
+
+				btn.classList.add('is-flipped');
+				state.revealing.push(i);
+
+				if (state.revealing.length === 2) {
+					const [a, b] = state.revealing;
+					const sa = state.deck[a];
+					const sb = state.deck[b];
+					if (sa === sb) {
+						setTimeout(() => {
+							state.cards[a].classList.add('is-matched');
+							state.cards[b].classList.add('is-matched');
+							state.cards[a].classList.remove('is-flipped');
+							state.cards[b].classList.remove('is-flipped');
+							state.revealing = [];
+							state.pairsMatchedInRound++;
+							state.score += 50 + Math.max(0, Math.floor(state.timeLeft * 0.5));
+							pairsEl.textContent = state.pairsMatchedInRound + '/' + state.totalPairs;
+							scoreEl.textContent = state.score;
+							game.reportScore(state.score);
+							if (state.pairsMatchedInRound >= state.totalPairs) {
+								roundComplete();
+							}
+						}, 280);
+					} else {
+						revealTimer = setTimeout(() => {
+							state.cards[a].classList.remove('is-flipped');
+							state.cards[b].classList.remove('is-flipped');
+							state.revealing = [];
+						}, REVEAL_MS);
+					}
+				}
+			}
+
+			function roundComplete() {
+				state.round++;
+				state.score += 100 + Math.floor(state.timeLeft * 1.5);
+				state.timeLeft += 12;
+				state.pairsMatchedInRound = 0;
+				state.deck = buildRound();
+				state.revealing = [];
+				renderBoard();
+				scoreEl.textContent = state.score;
+				roundEl.textContent = state.round;
+				pairsEl.textContent = '0/' + state.totalPairs;
+				game.reportScore(state.score);
+			}
+
+			function startGame() {
+				clearTimeout(revealTimer);
+				state = fresh();
+				state.deck = buildRound();
+				state.phase = 'playing';
+				state.paused = false;
+				overlay.style.display = 'none';
+				renderBoard();
+				scoreEl.textContent = '0';
+				roundEl.textContent = '1';
+				pairsEl.textContent = '0/' + state.totalPairs;
+				lastTs = performance.now();
+				loop.tick();
+			}
+
+			function endGame() {
+				state.phase = 'gameover';
+				clearTimeout(revealTimer);
+				game.reportGameover(state.score, { round: state.round - 1, pairs: state.pairsMatchedInRound });
+				overlayTitle.textContent = 'Time’s up';
+				overlayMsg.textContent = 'You cleared ' + (state.round - 1) + ' rounds and matched ' + state.pairsMatchedInRound + ' pairs in this round.';
+				overlayBtn.textContent = 'Play again';
+				overlay.style.display = 'flex';
+			}
+
+			function update(dt) {
+				if (state.phase !== 'playing') return;
+				state.timeLeft = Math.max(0, state.timeLeft - dt);
+				if (state.timeLeft <= 0) endGame();
+			}
+
+			function paint() {
+				timeEl.textContent = state.timeLeft.toFixed(1) + 's';
+				timeStat.classList.toggle('is-low', state.timeLeft < 10);
+			}
+
+			const loop = fixedTimestep({ stepHz: 30, onUpdate: update, onFrame: paint });
+
+			function bindInput() {
+				overlayBtn.addEventListener('click', (e) => {
+					e.stopPropagation();
+					if (state.phase === 'gameover' || state.phase === 'idle') startGame();
+				});
+				boardEl.addEventListener('pointerdown', () => {
+					if (state.phase === 'idle' || state.phase === 'gameover') startGame();
+				});
+				window.addEventListener('keydown', (e) => {
+					if (e.key === 'Enter' || e.key === ' ') {
+						e.preventDefault();
+						if (state.phase !== 'playing') startGame();
+					}
+				});
+			}
+
+			renderBoard();
+			bindInput();
+			game.ready();
+		</script>
+	</body>
+</html>

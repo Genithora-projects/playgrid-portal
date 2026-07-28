@@ -1,0 +1,18 @@
+{
+	"slug": "word-pop",
+	"title": "Word Pop",
+	"tagline": "Type the floating word before it drifts away",
+	"description": "A serene word game. Words float up from the bottom; type them fast to pop them before they leave. Get the longest streak you can.",
+	"category": "word",
+	"tags": ["typing", "calm", "infinite"],
+	"size": "tall",
+	"accentColor": "#10b981",
+	"cover": "cover.svg",
+	"orientation": "portrait",
+	"controls": ["keyboard"],
+	"sdkVersion": 1,
+  "status": "published",
+	"featured": false,
+	"publishedAt": "2026-07-28T00:00:00.000Z",
+	"updatedAt": "2026-07-28T00:00:00.000Z"
+}

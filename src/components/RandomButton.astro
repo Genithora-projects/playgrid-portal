@@ -1,0 +1,103 @@
+---
+/**
+ * Rastgele oyun butonu (FR-008 / T-30).
+ *
+ * Server tarafta 'published' oyunlarin slug listesi alinir, inline
+ * script ile client'a aktarilir (Astro define:vars). Inline JS bundle'a
+ * dahil edilmez; performans butcesine uygun.
+ *
+ * Bos set ise buton render edilmez.
+ */
+
+import { getPublishedSlugs } from '../lib/content';
+
+const slugs = await getPublishedSlugs();
+const hasGames = slugs.length > 0;
+---
+
+{hasGames && (
+	<a
+		href="/"
+		class="random-btn"
+		data-random-game
+		aria-label="Play a random game"
+		title="Surprise me"
+	>
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+			<rect x="3" y="3" width="18" height="18" rx="3"></rect>
+			<circle cx="8.5" cy="8.5" r="1.2" fill="currentColor"></circle>
+			<circle cx="15.5" cy="15.5" r="1.2" fill="currentColor"></circle>
+			<circle cx="15.5" cy="8.5" r="1.2" fill="currentColor"></circle>
+			<circle cx="8.5" cy="15.5" r="1.2" fill="currentColor"></circle>
+		</svg>
+		<span class="random-btn-label">Surprise me</span>
+	</a>
+)}
+
+<script is:inline define:vars={{ slugs }}>
+	document.querySelectorAll('[data-random-game]').forEach(function (btn) {
+		btn.addEventListener('click', function (e) {
+			e.preventDefault();
+			if (!slugs || slugs.length === 0) return;
+			var slug = slugs[Math.floor(Math.random() * slugs.length)];
+			window.location.href = '/play/' + slug;
+		});
+		btn.addEventListener('keydown', function (e) {
+			if (e.key === 'Enter' || e.key === ' ') {
+				e.preventDefault();
+				var slug = slugs[Math.floor(Math.random() * slugs.length)];
+				window.location.href = '/play/' + slug;
+			}
+		});
+	});
+</script>
+
+<style>
+	.random-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
+		padding: var(--space-2) var(--space-3);
+		background: var(--color-bg-elevated);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-full);
+		color: var(--color-text-muted);
+		font-size: var(--font-size-sm);
+		font-weight: var(--font-weight-medium);
+		text-decoration: none;
+		cursor: pointer;
+		transition:
+			background-color var(--dur-fast) var(--ease-standard),
+			border-color var(--dur-fast) var(--ease-standard),
+			color var(--dur-fast) var(--ease-standard);
+	}
+
+	.random-btn:hover,
+	.random-btn:focus-visible {
+		background: var(--color-bg-sunken);
+		border-color: var(--color-border-strong);
+		color: var(--color-text);
+		text-decoration: none;
+	}
+
+	.random-btn svg {
+		width: 1rem;
+		height: 1rem;
+	}
+
+	.random-btn-label {
+		display: inline;
+	}
+
+	@media (max-width: 480px) {
+		.random-btn-label {
+			display: none;
+		}
+		.random-btn {
+			width: 2.5rem;
+			height: 2.5rem;
+			padding: 0;
+			justify-content: center;
+		}
+	}
+</style>

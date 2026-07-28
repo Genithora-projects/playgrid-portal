@@ -1,0 +1,215 @@
+---
+/**
+ * Oyun karti (FR-002).
+ * Bento grid 4 farkli kart boyutunu kabul eder (small/wide/tall/hero).
+ * Boyut, kapak aspect-ratio'sunu ve grid row/column-span'ini yonetir.
+ * Oyunun accentColor'i kartin --color-accent slotuna yazilir; kart kendi
+ * kapsaminda (scoped CSS) o rengi hover/focus kenarliginda kullanir.
+ * Badges (FR-007) metadata'dan uretilir: featured/new/updated.
+ *
+ * CLS=0: kart slot'unu grid yonetir; kapak aspect-ratio ile kapsar.
+ */
+
+import type { Badge } from '../lib/badges';
+
+interface Props {
+	slug: string;
+	title: string;
+	tagline: string;
+	category: string;
+	accentColor: string;
+	cover: string;
+	size: 'small' | 'wide' | 'tall' | 'hero';
+	badges?: Badge[];
+}
+
+const { slug, title, tagline, category, accentColor, cover, size, badges = [] } = Astro.props;
+
+const accentStyle = `--color-accent:${accentColor};`;
+const hasFeature = badges.some((b) => b.kind === 'featured');
+---
+
+<article
+	class="card"
+	data-size={size}
+	data-featured={hasFeature ? 'true' : 'false'}
+	style={accentStyle}
+>
+	<a class="card-link" href={`/play/${slug}`} aria-label={`Play ${title} — ${tagline}`}>
+		<div class="card-cover">
+			<img
+				src={`/games/${slug}/${cover}`}
+				alt={`${title} cover`}
+				loading="lazy"
+				decoding="async"
+				width="800"
+				height="450"
+			/>
+			{badges.length > 0 && (
+				<div class="card-badges">
+					{badges.map((b) => (
+						<span class={`card-badge card-badge-${b.kind}`} aria-hidden="true">{b.label}</span>
+					))}
+				</div>
+			)}
+		</div>
+		<div class="card-body">
+			<span class="card-category">{category}</span>
+			<h2 class="card-title">{title}</h2>
+			<p class="card-tagline">{tagline}</p>
+		</div>
+	</a>
+</article>
+
+<style>
+	.card {
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		border-radius: var(--radius-lg);
+		background: var(--color-bg-elevated);
+		border: 1px solid var(--color-border);
+		overflow: hidden;
+		isolation: isolate;
+		transition:
+			transform var(--dur-base) var(--ease-emphasized),
+			box-shadow var(--dur-base) var(--ease-emphasized),
+			border-color var(--dur-base) var(--ease-emphasized);
+		min-width: 0;
+	}
+
+	.card:hover,
+	.card:focus-within {
+		transform: translateY(-3px);
+		border-color: var(--color-accent);
+		box-shadow: var(--shadow-md);
+	}
+
+	.card:focus-within {
+		outline: 2px solid var(--color-focus-ring);
+		outline-offset: 2px;
+	}
+
+	.card-link {
+		display: flex;
+		flex-direction: column;
+		text-decoration: none;
+		color: inherit;
+		height: 100%;
+	}
+
+	.card-link:hover,
+	.card-link:focus-visible {
+		text-decoration: none;
+	}
+
+	.card-cover {
+		position: relative;
+		background: var(--color-bg-sunken);
+		overflow: hidden;
+	}
+
+	.card[data-size='small'] .card-cover { aspect-ratio: 1 / 1; }
+	.card[data-size='wide']  .card-cover { aspect-ratio: 2 / 1; }
+	.card[data-size='tall']  .card-cover { aspect-ratio: 1 / 2; }
+	.card[data-size='hero']  .card-cover { aspect-ratio: 16 / 9; }
+
+	.card-cover img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		display: block;
+		transition: transform var(--dur-slow) var(--ease-emphasized);
+	}
+
+	.card:hover .card-cover img {
+		transform: scale(1.03);
+	}
+
+	.card-badges {
+		position: absolute;
+		top: var(--space-3);
+		left: var(--space-3);
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-1);
+	}
+
+	.card-badge {
+		padding: var(--space-1) var(--space-2);
+		border-radius: var(--radius-full);
+		font-size: var(--font-size-xs);
+		font-weight: var(--font-weight-semibold);
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		color: var(--color-accent-contrast);
+		background: var(--color-accent);
+		box-shadow: var(--shadow-sm);
+	}
+
+	.card-badge-new {
+		background: #10b981;
+		color: #ffffff;
+	}
+
+	.card-badge-updated {
+		background: #f59e0b;
+		color: #1c1207;
+	}
+
+	.card-body {
+		padding: var(--space-4);
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+		flex: 1 1 auto;
+	}
+
+	.card-category {
+		display: inline-block;
+		width: max-content;
+		padding: var(--space-1) var(--space-2);
+		font-size: var(--font-size-xs);
+		font-weight: var(--font-weight-semibold);
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+		color: var(--color-accent);
+		background: var(--color-accent-soft);
+		border-radius: var(--radius-sm);
+	}
+
+	.card-title {
+		margin: 0;
+		font-size: var(--font-size-xl);
+		font-weight: var(--font-weight-semibold);
+		line-height: var(--line-height-snug);
+		color: var(--color-text);
+	}
+
+	.card[data-size='hero'] .card-title {
+		font-size: var(--font-size-2xl);
+	}
+
+	.card-tagline {
+		margin: 0;
+		font-size: var(--font-size-sm);
+		line-height: var(--line-height-snug);
+		color: var(--color-text-muted);
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+	}
+
+	.card[data-size='small'] .card-body {
+		padding: var(--space-3);
+	}
+
+	.card[data-size='small'] .card-title {
+		font-size: var(--font-size-base);
+	}
+
+	.card[data-size='small'] .card-tagline {
+		display: none;
+	}
+</style>

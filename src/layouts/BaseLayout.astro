@@ -1,0 +1,174 @@
+---
+import '../styles/tokens.css';
+import '../styles/global.css';
+import ThemeToggle from '../components/ThemeToggle.astro';
+import RandomButton from '../components/RandomButton.astro';
+import { SITE_NAME, SITE_DESCRIPTION } from '../lib/site';
+
+interface Props {
+	title: string;
+	description?: string;
+	image?: string;
+	canonical?: string;
+	type?: 'website' | 'video.game';
+}
+
+const { title, description = SITE_DESCRIPTION, image, canonical, type = 'website' } = Astro.props;
+const fullTitle = title === SITE_NAME ? SITE_NAME : `${title} — ${SITE_NAME}`;
+const canonicalUrl = canonical ?? Astro.url.toString();
+const ogImage = image ?? new URL('/favicon.svg', Astro.url).toString();
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="generator" content={Astro.generator} />
+		<meta name="color-scheme" content="light dark" />
+		<meta name="description" content={description} />
+		<meta name="theme-color" content="#0c0c10" media="(prefers-color-scheme: dark)" />
+		<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<link rel="alternate icon" href="/favicon.ico" />
+		<link rel="canonical" href={canonicalUrl} />
+		<link rel="manifest" href="/manifest.json" />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+		<title>{fullTitle}</title>
+
+		<!-- Open Graph -->
+		<meta property="og:type" content={type} />
+		<meta property="og:site_name" content={SITE_NAME} />
+		<meta property="og:title" content={fullTitle} />
+		<meta property="og:description" content={description} />
+		<meta property="og:url" content={canonicalUrl} />
+		<meta property="og:image" content={ogImage} />
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content={fullTitle} />
+		<meta name="twitter:description" content={description} />
+		<meta name="twitter:image" content={ogImage} />
+
+		<script is:inline>
+			// FR-029: FOUC'suz tema. localStorage'da tema karari varsa onu
+			// uygula; yoksa sistem tercihine dus. Her durumda dark icin
+			// data-theme='dark' yazilir (BaseLayout ve tokens.css buna gore
+			// override eder); light icin yazilmaz, default'a dusulur.
+			(function () {
+				try {
+					var raw = localStorage.getItem('playgrid:v1');
+					var stored = null;
+					if (raw) {
+						var parsed = JSON.parse(raw);
+						if (parsed && (parsed.theme === 'light' || parsed.theme === 'dark')) {
+							stored = parsed.theme;
+						}
+					}
+					var sysDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+					var resolved = stored || (sysDark ? 'dark' : 'light');
+					if (resolved === 'dark') {
+						document.documentElement.dataset.theme = 'dark';
+					} else {
+						document.documentElement.dataset.theme = 'light';
+					}
+				} catch (e) {
+					document.documentElement.dataset.theme = 'light';
+				}
+			})();
+		</script>
+		<script is:inline>
+			// T-34 / FR-032: service worker kayit. Kabuk + oynanmis oyunlar
+			// cevrimdisi calisabilir olur.
+			if ('serviceWorker' in navigator) {
+				window.addEventListener('load', function () {
+					navigator.serviceWorker.register('/sw.js').catch(function (err) {
+						console.warn('SW registration failed:', err);
+					});
+				});
+			}
+		</script>
+	</head>
+	<body>
+		<a href="#main" class="skip-link">Skip to content</a>
+		<header class="site-header">
+			<a href="/" class="site-brand" aria-label={`${SITE_NAME} — home`}>
+				<span class="site-brand-mark" aria-hidden="true"></span>
+				<span class="site-brand-name">{SITE_NAME}</span>
+			</a>
+			<nav class="site-nav" aria-label="Primary">
+				<RandomButton />
+				<ThemeToggle />
+			</nav>
+		</header>
+		<main id="main" class="site-main"><slot /></main>
+		<footer class="site-footer">
+			<small>© {new Date().getFullYear()} {SITE_NAME}. <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></small>
+		</footer>
+	</body>
+</html>
+
+<style>
+	.site-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: var(--space-4) var(--space-6);
+		max-width: var(--container-max);
+		margin: 0 auto;
+	}
+
+	.site-brand {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
+		font-weight: var(--font-weight-bold);
+		font-size: var(--font-size-lg);
+		letter-spacing: -0.01em;
+		color: var(--color-text);
+		text-decoration: none;
+	}
+
+	.site-brand:hover,
+	.site-brand:focus-visible {
+		text-decoration: none;
+	}
+
+	.site-brand-mark {
+		display: inline-block;
+		width: 1.25rem;
+		height: 1.25rem;
+		border-radius: var(--radius-sm);
+		background: linear-gradient(135deg, #6366f1 0%, #f59e0b 50%, #10b981 100%);
+	}
+
+	.site-nav {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-2);
+	}
+
+	.site-main {
+		max-width: var(--container-max);
+		margin: 0 auto;
+		padding: var(--space-8) var(--space-6) var(--space-12);
+	}
+
+	.site-footer {
+		max-width: var(--container-max);
+		margin: 0 auto;
+		padding: var(--space-6);
+		border-top: 1px solid var(--color-border);
+		color: var(--color-text-muted);
+		font-size: var(--font-size-xs);
+	}
+
+	.site-footer a {
+		color: var(--color-text-muted);
+	}
+
+	.site-footer a:hover,
+	.site-footer a:focus-visible {
+		color: var(--color-text);
+	}
+</style>

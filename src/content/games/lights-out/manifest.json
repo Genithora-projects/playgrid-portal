@@ -1,0 +1,18 @@
+{
+	"slug": "lights-out",
+	"title": "Lights Out",
+	"tagline": "Toggle the grid to darkness. Every click flips itself and its neighbors.",
+	"description": "A classic 5x5 toggle puzzle. Each cell starts on or off. Clicking any cell toggles it and its four neighbors. Your goal is to turn the whole board off before time runs out. Each round, the pattern reseeds, the difficulty climbs.",
+	"category": "puzzle",
+	"tags": ["logic", "toggle", "single-tap"],
+	"size": "wide",
+	"accentColor": "#0ea5e9",
+	"cover": "cover.svg",
+	"orientation": "any",
+	"controls": ["touch", "keyboard"],
+	"sdkVersion": 1,
+	"status": "published",
+	"featured": false,
+	"publishedAt": "2026-07-28T00:00:00.000Z",
+	"updatedAt": "2026-07-28T00:00:00.000Z"
+}

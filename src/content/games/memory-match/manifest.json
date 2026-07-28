@@ -1,0 +1,18 @@
+{
+	"slug": "memory-match",
+	"title": "Memory Match",
+	"tagline": "Flip two cards. Remember what you saw.",
+	"description": "A classic memory match. Sixteen cards, eight pairs. Tap to flip, remember the symbols, match pairs to lock them. Each round, all cards shuffle; the timer never stops. Score is pairs × 50 plus a round-clear bonus.",
+	"category": "puzzle",
+	"tags": ["memory", "single-tap"],
+	"size": "small",
+	"accentColor": "#f43f5e",
+	"cover": "cover.svg",
+	"orientation": "any",
+	"controls": ["touch", "keyboard"],
+	"sdkVersion": 1,
+	"status": "published",
+	"featured": false,
+	"publishedAt": "2026-07-28T00:00:00.000Z",
+	"updatedAt": "2026-07-28T00:00:00.000Z"
+}

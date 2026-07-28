@@ -1,0 +1,158 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { SITE_NAME } from '../lib/site';
+---
+
+<BaseLayout title="Terms of Use" description={`${SITE_NAME} terms of use — short and honest.`}>
+	<article class="legal">
+		<header>
+			<a href="/" class="legal-back">← Back</a>
+			<h1>Terms of Use</h1>
+			<p class="legal-meta">Last updated: 2026-07-28</p>
+		</header>
+
+		<section>
+			<h2>1. The product</h2>
+			<p>
+				{SITE_NAME} (the "Product") is a small collection of original,
+				hand-made browser games. The Product is provided free of charge,
+				without accounts and without advertising.
+			</p>
+		</section>
+
+		<section>
+			<h2>2. Acceptable use</h2>
+			<ul>
+				<li>Use the Product for personal, non-commercial play.</li>
+				<li>Do not attempt to disrupt the Product, scrape it at scale,
+					or reverse-engineer game files for redistribution.</li>
+				<li>If you find a bug or vulnerability, please report it via the
+					contact channel listed below.</li>
+			</ul>
+		</section>
+
+		<section>
+			<h2>3. Intellectual property</h2>
+			<p>
+				All games, artwork, and code are original creations. Individual
+				game folders carry a <code>LICENSE.md</code> documenting their
+				asset origins. Where third-party lists are used (for example, an
+				English word list), the source and licence are credited in the
+				game's <code>LICENSE.md</code>.
+			</p>
+			<p>
+				You may not redistribute the Product or substantial portions of it
+				without permission.
+			</p>
+		</section>
+
+		<section>
+			<h2>4. Disclaimer</h2>
+			<p>
+				The Product is provided "as is", without warranty of any kind.
+				Games may be added, removed, or changed at any time. We may
+				temporarily take the Product offline for maintenance.
+			</p>
+		</section>
+
+		<section>
+			<h2>5. Limitation of liability</h2>
+			<p>
+				To the maximum extent permitted by law, the maintainers of the
+				Product are not liable for any indirect or consequential damages
+				arising from use of the Product.
+			</p>
+		</section>
+
+		<section>
+			<h2>6. Children</h2>
+			<p>
+				The Product does not require registration and is suitable for
+				general audiences. Parents and guardians may clear local data from
+				their child's browser at any time using their browser's site
+				settings.
+			</p>
+		</section>
+
+		<section>
+			<h2>7. Changes to these terms</h2>
+			<p>
+				If we change these terms in a way that affects your rights, we
+				will update this page and note the change date above. Continued
+				use after such an update counts as acceptance.
+			</p>
+		</section>
+
+		<section>
+			<h2>8. Contact</h2>
+			<p>
+				Questions about these terms can be sent to a contact address we
+				will publish at launch (S1/sponsor-site-domain).
+			</p>
+		</section>
+	</article>
+</BaseLayout>
+
+<style>
+	.legal {
+		max-width: 720px;
+		margin: 0 auto;
+		padding: var(--space-8) 0;
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-6);
+	}
+
+	.legal-back {
+		display: inline-flex;
+		width: max-content;
+		padding: var(--space-2) var(--space-3);
+		color: var(--color-text-muted);
+		font-size: var(--font-size-sm);
+		font-weight: var(--font-weight-medium);
+		text-decoration: none;
+		border-radius: var(--radius-md);
+	}
+
+	.legal-back:hover,
+	.legal-back:focus-visible {
+		background: var(--color-bg-elevated);
+		color: var(--color-text);
+		text-decoration: none;
+	}
+
+	.legal h1 {
+		margin: var(--space-2) 0 var(--space-2);
+		font-size: var(--font-size-3xl);
+	}
+
+	.legal-meta {
+		margin: 0;
+		font-size: var(--font-size-sm);
+		color: var(--color-text-subtle);
+	}
+
+	.legal h2 {
+		margin: 0 0 var(--space-3);
+		font-size: var(--font-size-lg);
+		color: var(--color-text);
+	}
+
+	.legal p, .legal ul {
+		margin: 0 0 var(--space-3);
+		color: var(--color-text-muted);
+		line-height: var(--line-height-loose);
+	}
+
+	.legal ul {
+		padding-left: var(--space-6);
+	}
+
+	.legal code {
+		font-family: var(--font-mono);
+		font-size: 0.95em;
+		padding: 2px 6px;
+		background: var(--color-bg-elevated);
+		border-radius: var(--radius-sm);
+	}
+</style>

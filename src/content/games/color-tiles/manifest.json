@@ -1,0 +1,18 @@
+{
+	"slug": "color-tiles",
+	"title": "Color Tiles",
+	"tagline": "Tap tiles in rhythm with the color cue",
+	"description": "A fast, color-matching reflex puzzle. Each tile lights up with its accent color; tap it only when the cue matches the target. Miss three in a row and the run ends.",
+	"category": "reflex",
+	"tags": ["colors", "rhythm", "single-tap"],
+	"size": "hero",
+	"accentColor": "#6366f1",
+	"cover": "cover.svg",
+	"orientation": "any",
+	"controls": ["touch", "keyboard"],
+	"sdkVersion": 1,
+	"status": "published",
+	"featured": true,
+	"publishedAt": "2026-07-28T00:00:00.000Z",
+	"updatedAt": "2026-07-28T00:00:00.000Z"
+}

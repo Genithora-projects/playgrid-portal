@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover" />
+		<meta name="theme-color" content="#0c0c10" />
+		<title>Color Tiles</title>
+		<style>
+			:root { color-scheme: dark; }
+			*, *::before, *::after { box-sizing: border-box; }
+			html, body {
+				margin: 0; padding: 0; height: 100dvh; overflow: hidden;
+				background: #0c0c10; color: #f4f4f5;
+				font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+				touch-action: manipulation; user-select: none; -webkit-user-select: none;
+			}
+			.board {
+				position: relative; height: 100dvh; display: grid;
+				grid-template-rows: auto 1fr; gap: 0;
+			}
+			.hud {
+				display: flex; align-items: center; justify-content: space-between;
+				gap: 12px; padding: 14px 18px; font-weight: 600;
+				background: linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 100%);
+			}
+			.hud-score, .hud-time, .hud-target {
+				display: inline-flex; align-items: center; gap: 8px;
+				padding: 8px 14px; background: rgba(255,255,255,0.06);
+				backdrop-filter: blur(6px); border-radius: 999px;
+				font-size: 14px;
+			}
+			.hud-time { font-variant-numeric: tabular-nums; min-width: 80px; justify-content: center; }
+			.hud-time.is-low { background: rgba(244,63,94,0.18); color: #fda4af; }
+			.hud-target { padding: 6px 10px 6px 6px; }
+			.hud-target-swatch {
+				width: 28px; height: 28px; border-radius: 8px; box-shadow: inset 0 0 0 2px rgba(255,255,255,0.15);
+			}
+			.hud-target-name { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.85; }
+
+			.tiles {
+				display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+				padding: 16px 16px max(16px, env(safe-area-inset-bottom));
+				place-content: stretch;
+			}
+			.tile {
+				appearance: none; border: none; padding: 0; margin: 0;
+				border-radius: 24px; cursor: pointer;
+				color: rgba(255,255,255,0.92); font-weight: 800; font-size: clamp(28px, 8vw, 56px);
+				box-shadow: inset 0 -8px 0 rgba(0,0,0,0.18), inset 0 4px 0 rgba(255,255,255,0.18), 0 8px 20px rgba(0,0,0,0.25);
+				transition: transform 80ms ease, filter 80ms ease, outline-color 200ms ease;
+				min-height: 0;
+				font-family: inherit;
+				outline: 0 solid transparent; outline-offset: 0;
+			}
+			.tile.is-target { box-shadow: inset 0 -8px 0 rgba(0,0,0,0.18), inset 0 4px 0 rgba(255,255,255,0.22), 0 0 0 4px rgba(255,255,255,0.9), 0 12px 28px rgba(0,0,0,0.35); }
+			.tile.flash-correct { filter: brightness(1.4); }
+			.tile.flash-wrong { filter: brightness(0.4) saturate(0); }
+			.tile:active { transform: scale(0.97); }
+			.tile-num {
+				display: inline-block; padding: 4px 10px; border-radius: 999px;
+				background: rgba(0,0,0,0.32); font-size: 14px;
+				position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+			}
+			.tile-wrap { position: relative; }
+			.end-screen {
+				position: absolute; inset: 0; display: flex; flex-direction: column;
+				align-items: center; justify-content: center; gap: 12px;
+				background: rgba(0,0,0,0.65); backdrop-filter: blur(8px);
+				color: #f4f4f5; text-align: center; padding: 24px;
+			}
+			.end-screen h2 { margin: 0; font-size: 28px; }
+			.end-screen p  { margin: 0; font-size: 18px; opacity: 0.85; }
+			.end-screen .end-score { font-size: 64px; font-weight: 800; margin: 8px 0; font-variant-numeric: tabular-nums; }
+
+			@media (min-width: 720px) { .tiles { gap: 24px; padding: 24px; } }
+			@media (max-height: 480px) { .tile { font-size: 24px; } }
+		</style>
+	</head>
+	<body>
+		<div class="board" role="application" aria-label="Color Tiles">
+			<div class="hud" aria-live="polite">
+				<div class="hud-score">Score <span id="score">0</span></div>
+				<div class="hud-target" aria-label="Target color">
+					<span class="hud-target-swatch" id="target-swatch" style="background:#6366f1"></span>
+					<span class="hud-target-name" id="target-name">indigo</span>
+				</div>
+				<div class="hud-time" id="time">60.0s</div>
+			</div>
+			<div class="tiles" id="tiles"></div>
+			<div class="end-screen" id="end" hidden>
+				<h2>Time's up</h2>
+				<p>Final score</p>
+				<div class="end-score" id="final">0</div>
+				<p>Tap any tile to play again</p>
+			</div>
+		</div>
+		<script type="module">
+			import { createGame, fixedTimestep, attachInput } from '/sdk/sdk.mjs';
+
+			const TILES = [
+				{ name: 'indigo',  hex: '#6366f1' },
+				{ name: 'amber',   hex: '#f59e0b' },
+				{ name: 'emerald', hex: '#10b981' },
+				{ name: 'rose',    hex: '#f43f5e' },
+			];
+			const RUN_SECONDS = 60;
+			const START_BASELINE = 5.0;
+			const MIN_BASELINE = 1.4;
+			const BASELINE_STEP = 0.18;
+			const HIT_BONUS = 10;
+			const MISS_PENALTY = 5;
+
+			const game = createGame({
+				slug: 'color-tiles',
+				sdkVersion: 1,
+				onPause() { loop.stop(); },
+				onResume() { loop.tick(); lastTs = performance.now(); },
+				onMute() {},
+			});
+
+			const tilesEl = document.getElementById('tiles');
+			const scoreEl = document.getElementById('score');
+			const targetSwatch = document.getElementById('target-swatch');
+			const targetName = document.getElementById('target-name');
+			const timeEl = document.getElementById('time');
+			const endEl = document.getElementById('end');
+			const finalEl = document.getElementById('final');
+
+			/** @type {Array<HTMLButtonElement>} */
+			const tileButtons = [];
+			for (let i = 0; i < TILES.length; i++) {
+				const wrap = document.createElement('div');
+				wrap.className = 'tile-wrap';
+				wrap.style.minHeight = '0';
+
+				const btn = document.createElement('button');
+				btn.className = 'tile';
+				btn.dataset.tile = String(i);
+				btn.style.background = TILES[i].hex;
+				btn.setAttribute('aria-label', 'Tile ' + TILES[i].name);
+				btn.appendChild(document.createTextNode(TILES[i].name));
+
+				const num = document.createElement('span');
+				num.className = 'tile-num';
+				num.textContent = String(i + 1);
+
+				wrap.appendChild(btn);
+				wrap.appendChild(num);
+				tilesEl.appendChild(wrap);
+				tileButtons.push(btn);
+
+				btn.addEventListener('click', () => onTile(i));
+			}
+
+			const input = attachInput(window);
+			window.addEventListener('game-input', (e) => {
+				if (!state.running) {
+					if (e.detail.kind === 'action' && e.detail.pressed) restart();
+					return;
+				}
+				const k = e.detail.kind;
+				if (e.detail.pressed && (k === 'left' || k === 'action')) {
+					const i = (state.target - 1 + TILES.length) % TILES.length;
+					onTile(i);
+				}
+				if (e.detail.pressed && k === 'right') {
+					const i = (state.target + 1) % TILES.length;
+					onTile(i);
+				}
+				if (e.detail.pressed && (k === 'up' || k === 'down')) {
+					const i = state.target; onTile(i);
+				}
+			});
+
+			let state = freshState();
+			let lastTs = performance.now();
+
+			function freshState() {
+				const target = Math.floor(Math.random() * TILES.length);
+				return {
+					running: false,
+					score: 0,
+					target,
+					hits: 0,
+					timeLeft: RUN_SECONDS,
+					baseline: START_BASELINE,
+					cueLeft: START_BASELINE,
+				};
+			}
+
+			function pickNextTarget(prev) {
+				let t = Math.floor(Math.random() * (TILES.length - 1));
+				if (t >= prev) t++;
+				return t;
+			}
+
+			function renderHud() {
+				scoreEl.textContent = String(state.score);
+				targetSwatch.style.background = TILES[state.target].hex;
+				targetName.textContent = TILES[state.target].name;
+				timeEl.textContent = state.timeLeft.toFixed(1) + 's';
+				timeEl.classList.toggle('is-low', state.timeLeft < 10);
+				for (let i = 0; i < tileButtons.length; i++) {
+					tileButtons[i].classList.toggle('is-target', i === state.target && state.running);
+				}
+			}
+
+			function flash(btn, kind) {
+				btn.classList.add(kind === 'correct' ? 'flash-correct' : 'flash-wrong');
+				setTimeout(() => btn.classList.remove('flash-correct', 'flash-wrong'), 90);
+			}
+
+			function onTile(i) {
+				if (!state.running) return;
+				if (i === state.target) {
+					state.score += HIT_BONUS;
+					state.hits++;
+					state.baseline = Math.max(MIN_BASELINE, state.baseline - BASELINE_STEP);
+					state.cueLeft = state.baseline;
+					state.target = pickNextTarget(state.target);
+					flash(tileButtons[i], 'correct');
+					game.reportScore(state.score);
+				} else {
+					state.score = Math.max(0, state.score - MISS_PENALTY);
+					flash(tileButtons[i], 'wrong');
+					game.reportScore(state.score);
+				}
+				renderHud();
+			}
+
+			function end() {
+				state.running = false;
+				loop.stop();
+				endEl.hidden = false;
+				finalEl.textContent = String(state.score);
+				game.reportGameover(state.score, { hits: state.hits, durationSec: RUN_SECONDS });
+			}
+
+			function restart() {
+				state = freshState();
+				endEl.hidden = true;
+				loop.tick();
+				renderHud();
+			}
+
+			const loop = fixedTimestep({
+				stepHz: 60,
+				onUpdate(dt) {
+					if (!state.running) return;
+					state.timeLeft = Math.max(0, state.timeLeft - dt);
+					state.cueLeft = Math.max(0, state.cueLeft - dt);
+					if (state.cueLeft <= 0) {
+						state.score = Math.max(0, state.score - MISS_PENALTY);
+						state.cueLeft = state.baseline;
+						state.target = pickNextTarget(state.target);
+						game.reportScore(state.score);
+					}
+					if (state.timeLeft <= 0) end();
+				},
+				onFrame() { renderHud(); },
+			});
+
+			function start() {
+				state.running = true;
+				lastTs = performance.now();
+				loop.tick();
+				renderHud();
+			}
+
+			endEl.addEventListener('click', restart);
+			window.addEventListener('blur', () => { if (state.running) game.reportScore(state.score); });
+
+			start();
+			game.ready();
+		</script>
+	</body>
+</html>

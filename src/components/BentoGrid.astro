@@ -1,0 +1,114 @@
+---
+/**
+ * Bento grid (FR-001). Otomatik akan CSS Grid; kart boyutu metadata'dan
+ * gelir (small=1x1, wide=2x1, tall=1x2, hero=2x2). Layout el ile
+ * konumlandirilmaz (FR-001 kabul kriteri).
+ *
+ * Mobile (<960px) boyutlar tek kolona duser; tum kartlar ayni genislik.
+ */
+
+import GameCard from './GameCard.astro';
+import type { Game } from '../lib/content';
+import { badgesFor } from '../lib/badges';
+
+interface Props {
+	games: Game[];
+}
+
+const { games } = Astro.props;
+---
+
+{games.length > 0 ? (
+	<ul class="bento" role="list">
+		{games.map((game) => (
+			<li class="bento-cell">
+				<GameCard
+					slug={game.data.slug}
+					title={game.data.title}
+					tagline={game.data.tagline}
+					category={game.data.category}
+					accentColor={game.data.accentColor}
+					cover={game.data.cover}
+					size={game.data.size}
+					badges={badgesFor(game)}
+				/>
+			</li>
+		))}
+	</ul>
+) : (
+	<p class="bento-empty">No games in this category yet. Check back soon.</p>
+)}
+
+<style>
+	.bento {
+		display: grid;
+		grid-auto-flow: dense;
+		gap: var(--space-4);
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		grid-template-columns: repeat(1, minmax(0, 1fr));
+	}
+
+	@media (min-width: 640px) {
+		.bento {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+	}
+
+	@media (min-width: 960px) {
+		.bento {
+			grid-template-columns: repeat(4, minmax(0, 1fr));
+		}
+
+		.bento-cell:has(.card[data-size='hero']) {
+			grid-column: span 2;
+			grid-row: span 2;
+		}
+
+		.bento-cell:has(.card[data-size='wide']) {
+			grid-column: span 2;
+		}
+
+		.bento-cell:has(.card[data-size='tall']) {
+			grid-row: span 2;
+		}
+	}
+
+	@media (min-width: 1280px) {
+		.bento {
+			grid-template-columns: repeat(6, minmax(0, 1fr));
+		}
+
+		.bento-cell:has(.card[data-size='hero']) {
+			grid-column: span 4;
+			grid-row: span 2;
+		}
+
+		.bento-cell:has(.card[data-size='wide']) {
+			grid-column: span 3;
+		}
+
+		.bento-cell:has(.card[data-size='tall']) {
+			grid-row: span 2;
+			grid-column: span 2;
+		}
+	}
+
+	.bento-cell {
+		display: flex;
+		min-width: 0;
+	}
+
+	.bento-cell > .card {
+		width: 100%;
+	}
+
+	.bento-empty {
+		padding: var(--space-12) var(--space-4);
+		text-align: center;
+		color: var(--color-text-muted);
+		border: 2px dashed var(--color-border);
+		border-radius: var(--radius-lg);
+	}
+</style>

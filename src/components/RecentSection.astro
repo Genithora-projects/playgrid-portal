@@ -1,0 +1,216 @@
+---
+/**
+ * Son oynananlar seridi (FR-006, T-24).
+ *
+ * Davranis:
+ *  - Server tarafinda 'published' oyunlarin ozet listesi gomulur.
+ *  - Client tarafinda localStorage (playgrid:v1) > lastPlaced okunur.
+ *  - Veri yoksa veya bos ise section HIC render edilmez (hidden).
+ *  - Veri varsa max 6 oyun kart basilir.
+ *  - 'Clear' butonu ile lastPlayed silinebilir (FR-020'a yonelik).
+ *
+ * Performans: inline script bundle'a katilmaz (Astro define:vars),
+ * butce icinde (<1KB inline JS). Kartlar lazy load kapak kullanir.
+ */
+
+import { getPublishedGames } from '../lib/content';
+
+const games = await getPublishedGames();
+const lite = games.map((g) => ({
+	slug: g.data.slug,
+	title: g.data.title,
+	cover: g.data.cover,
+	accentColor: g.data.accentColor,
+}));
+---
+
+<aside class="recent" data-recent hidden aria-label="Recently played games">
+	<header class="recent-head">
+		<h2 class="recent-title">Recently played</h2>
+		<button type="button" class="recent-clear" data-recent-clear hidden>Clear</button>
+	</header>
+	<ul class="recent-list" role="list"></ul>
+</aside>
+
+<script is:inline define:vars={{ lite }}>
+	(function () {
+		var section = document.querySelector('[data-recent]');
+		if (!section) return;
+		var list = section.querySelector('.recent-list');
+		var clearBtn = section.querySelector('[data-recent-clear]');
+		var KEY = 'playgrid:v1';
+
+		function load() {
+			try {
+				var raw = localStorage.getItem(KEY);
+				if (!raw) return null;
+				var data = JSON.parse(raw);
+				if (!data || !Array.isArray(data.lastPlayed)) return null;
+				return data;
+			} catch (e) { return null; }
+		}
+
+		function pick(slugs) {
+			var bySlug = Object.create(null);
+			for (var i = 0; i < lite.length; i++) bySlug[lite[i].slug] = lite[i];
+			var items = [];
+			var seen = Object.create(null);
+			for (var j = 0; j < slugs.length && items.length < 6; j++) {
+				var entry = slugs[j];
+				var g = bySlug[entry.slug];
+				if (g && !seen[entry.slug]) { items.push(g); seen[entry.slug] = true; }
+			}
+			return items;
+		}
+
+		function render() {
+			var data = load();
+			if (!data || !data.lastPlayed || data.lastPlayed.length === 0) {
+				section.hidden = true;
+				return;
+			}
+			var games = pick(data.lastPlayed);
+			if (games.length === 0) { section.hidden = true; return; }
+
+			while (list.firstChild) list.removeChild(list.firstChild);
+			for (var i = 0; i < games.length; i++) {
+				var g = games[i];
+				var li = document.createElement('li');
+				var a = document.createElement('a');
+				a.className = 'recent-card';
+				a.href = '/play/' + g.slug;
+				a.setAttribute('aria-label', 'Play ' + g.title + ' again');
+				a.style.setProperty('--color-accent', g.accentColor);
+				a.innerHTML =
+					'<span class="recent-cover"><img src="/games/' + g.slug + '/' + g.cover +
+					'" alt="" loading="lazy" decoding="async" width="400" height="200"></span>' +
+					'<span class="recent-name"></span>';
+				a.querySelector('.recent-name').textContent = g.title;
+				li.appendChild(a);
+				list.appendChild(li);
+			}
+			section.hidden = false;
+			clearBtn.hidden = false;
+		}
+
+		clearBtn.addEventListener('click', function () {
+			var data = load();
+			if (!data) return;
+			data.lastPlayed = [];
+			try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {}
+			render();
+		});
+
+		window.addEventListener('storage', function (e) {
+			if (e.key === KEY) render();
+		});
+
+		render();
+	})();
+</script>
+
+<style>
+	.recent {
+		margin: var(--space-8) 0 var(--space-6);
+		padding: var(--space-5) var(--space-5) var(--space-4);
+		background: var(--color-bg-elevated);
+		border-radius: var(--radius-lg);
+		border: 1px solid var(--color-border);
+	}
+
+	.recent-head {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: var(--space-3);
+	}
+
+	.recent-title {
+		margin: 0;
+		font-size: var(--font-size-lg);
+		font-weight: var(--font-weight-semibold);
+		color: var(--color-text);
+	}
+
+	.recent-clear {
+		padding: var(--space-1) var(--space-3);
+		font-size: var(--font-size-xs);
+		font-weight: var(--font-weight-medium);
+		color: var(--color-text-muted);
+		background: var(--color-bg-sunken);
+		border-radius: var(--radius-full);
+		cursor: pointer;
+		transition: background-color var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard);
+	}
+
+	.recent-clear:hover {
+		background: var(--color-border-strong);
+		color: var(--color-text);
+	}
+
+	.recent-list {
+		display: flex;
+		gap: var(--space-3);
+		overflow-x: auto;
+		padding: 4px var(--space-1) var(--space-3);
+		margin: 0;
+		list-style: none;
+		scrollbar-width: thin;
+		scroll-snap-type: x proximity;
+	}
+
+	.recent-list > li { scroll-snap-align: start; }
+
+	.recent-card {
+		flex: 0 0 156px;
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+		padding: var(--space-2);
+		background: var(--color-bg);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+		color: var(--color-text);
+		text-decoration: none;
+		transition:
+			transform var(--dur-base) var(--ease-emphasized),
+			border-color var(--dur-fast) var(--ease-standard);
+		min-width: 0;
+	}
+
+	.recent-card:hover,
+	.recent-card:focus-visible {
+		transform: translateY(-2px);
+		border-color: var(--color-accent);
+		text-decoration: none;
+	}
+
+	.recent-cover {
+		display: block;
+		aspect-ratio: 16 / 9;
+		background: var(--color-bg-sunken);
+		border-radius: var(--radius-sm);
+		overflow: hidden;
+	}
+
+	.recent-cover img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		display: block;
+	}
+
+	.recent-name {
+		display: block;
+		font-size: var(--font-size-sm);
+		font-weight: var(--font-weight-medium);
+		color: var(--color-text);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	@media (min-width: 640px) {
+		.recent-card { flex-basis: 184px; }
+	}
+</style>
