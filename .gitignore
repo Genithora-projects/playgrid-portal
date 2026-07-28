@@ -33,3 +33,4 @@ public/icons/
 # vite cache
 .vite/
 .cache/
+.vercel
