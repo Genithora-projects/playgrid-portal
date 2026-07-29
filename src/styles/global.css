@@ -58,6 +58,10 @@ canvas {
 	height: auto;
 }
 
+[hidden] {
+	display: none !important;
+}
+
 button {
 	font: inherit;
 	color: inherit;
